@@ -1,0 +1,260 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<script>
+// ===== تعليمات الذكاء الاصطناعي: عدلها من هنا =====
+const AI_INSTRUCTIONS = `
+الدور: أنت مرشد دراسي خبير يساعد الطلاب على تنظيم وقتهم والاستعداد للاختبارات.
+المهمة: تبني جدول مذاكرة يومي من اليوم إلى آخر اختبار، توزع فيه المواد على الأيام حسب قرب موعد الاختبار وصعوبة المادة، ترتب الأولويات، وتحط استراحات قصيرة بين الجلسات، ولا تتعدى ساعات الدراسة اليومية اللي حددها الطالب. يوم الاختبار نفسه يكون مراجعة خفيفة للمادة.
+الأسلوب: مشجع وواضح وعملي، بدون مبالغة.
+اللهجة: شامية
+الطول: كل مهمة في الجدول جملة قصيرة، وسبب الأولوية جملة وحدة، والنصيحة الختامية جملتين بالكثير.
+خارج الموضوع: إذا الطلب أو الملاحظات برا موضوع الدراسة وتنظيم الوقت، اعتذر بلطف في خانة النصيحة وقل إنك تساعد بس في تنظيم المذاكرة، وابنِ الجدول من بيانات المواد فقط.
+`;
+// ===== نهاية التعليمات =====
+</script>
+<title>منظّم الدراسة الذكي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Reem+Kufi:wght@500;700&display=swap">
+<style>
+/* تخطيط: عمود واحد هادئ — نموذج الإدخال فوق، والجدول بطاقات أيام تحته */
+:root {
+  --bg: #f3f6f4; --surface: #ffffff; --fg: #1f2d2a; --muted: #5d6f6a;
+  --line: #d9e3df; --accent: #3f7f6e; --accent-soft: #e2efe9;
+  --break: #f4ecdc; --break-fg: #7a5b25;
+  --easy: #4f8a5b; --mid: #b4862c; --hard: #b0574a; --err-bg: #fbecea;
+  --font-display: "Reem Kufi", "IBM Plex Sans Arabic", Tahoma, sans-serif;
+  --font-body: "IBM Plex Sans Arabic", Tahoma, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141c1a; --surface: #1c2624; --fg: #e3ece9; --muted: #9db0aa;
+  --line: #2e3d39; --accent: #7cc0ac; --accent-soft: #23362f;
+  --break: #33291a; --break-fg: #e2c48b; --easy: #85c592; --mid: #e0b45c; --hard: #e48d80; --err-bg: #3a2220;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #141c1a; --surface: #1c2624; --fg: #e3ece9; --muted: #9db0aa;
+  --line: #2e3d39; --accent: #7cc0ac; --accent-soft: #23362f;
+  --break: #33291a; --break-fg: #e2c48b; --easy: #85c592; --mid: #e0b45c; --hard: #e48d80; --err-bg: #3a2220;
+  color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.7; direction: rtl; }
+.wrap { max-width: 860px; margin: 0 auto; padding-inline: 16px; padding-block: 32px 64px; display: grid; gap: 28px; }
+header h1 { font-family: var(--font-display); font-size: clamp(1.9rem, 5vw, 2.6rem); margin: 0; color: var(--accent); text-wrap: balance; }
+header p { margin: 4px 0 0; color: var(--muted); max-width: 60ch; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: grid; gap: 18px; }
+.panel h2 { font-family: var(--font-display); font-size: 1.25rem; margin: 0; }
+.hint { font-size: .85rem; color: var(--muted); margin: 0; }
+label { font-size: .85rem; color: var(--muted); font-weight: 500; }
+input, select, textarea { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.subjects { display: grid; gap: 10px; }
+.row { display: grid; grid-template-columns: 2fr 1.4fr 1.2fr auto; gap: 8px; align-items: end; }
+.row > div { display: grid; gap: 2px; min-width: 0; }
+.remove { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 8px; height: 42px; width: 42px; cursor: pointer; font-size: 1.1rem; }
+.remove:hover { color: var(--hard); border-color: var(--hard); }
+.add { justify-self: start; background: var(--accent-soft); color: var(--accent); border: 0; border-radius: 8px; padding: 8px 14px; font: inherit; font-weight: 600; cursor: pointer; }
+.grid2 { display: grid; grid-template-columns: 1fr 2fr; gap: 14px; }
+.grid2 > div { display: grid; gap: 2px; min-width: 0; }
+.counter { font-size: .78rem; color: var(--muted); text-align: left; font-variant-numeric: tabular-nums; }
+
+.go { background: var(--accent); color: var(--surface); border: 0; border-radius: 10px; padding: 13px 22px; font: inherit; font-size: 1.05rem; font-weight: 600; cursor: pointer; justify-self: stretch; }
+.go:disabled { opacity: .6; cursor: wait; }
+
+.status { padding: 14px 16px; border-radius: 10px; background: var(--accent-soft); color: var(--fg); }
+.status.error { background: var(--err-bg); color: var(--hard); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: space-between; }
+.status button { font: inherit; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+
+.prio { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; counter-reset: p; }
+.prio li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; }
+.prio li::before { counter-increment: p; content: counter(p); font-family: var(--font-display); background: var(--accent-soft); color: var(--accent); border-radius: 50%; width: 30px; height: 30px; display: grid; place-items: center; }
+.prio strong { display: block; }
+.prio span { color: var(--muted); font-size: .9rem; }
+
+.days { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.day { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.day.exam { border-color: var(--hard); }
+.day h3 { margin: 0; padding: 10px 14px; font-size: 1rem; background: var(--accent-soft); display: flex; justify-content: space-between; gap: 8px; }
+.day.exam h3 { background: var(--err-bg); }
+.day h3 small { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+.sessions { list-style: none; margin: 0; padding: 8px; display: grid; gap: 6px; }
+.s { display: grid; grid-template-columns: 92px 1fr; gap: 8px; padding: 6px 8px; border-radius: 8px; font-size: .9rem; }
+.s time { color: var(--muted); font-variant-numeric: tabular-nums; direction: ltr; text-align: right; font-size: .82rem; }
+.s b { display: block; }
+.s.break { background: var(--break); color: var(--break-fg); }
+.tip { border-inline-start: 4px solid var(--accent); padding: 4px 14px; margin: 0; }
+.tag { font-size: .75rem; padding: 1px 8px; border-radius: 99px; border: 1px solid currentColor; }
+.tag.سهلة { color: var(--easy) } .tag.متوسطة { color: var(--mid) } .tag.صعبة { color: var(--hard) }
+
+@media (max-width: 620px) {
+  .row { grid-template-columns: 1fr 1fr; }
+  .row > div:first-child { grid-column: 1 / -1; }
+  .grid2 { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: no-preference) { .day { animation: up .35s ease both } @keyframes up { from { transform: translateY(6px); opacity: .4 } } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>منظّم الدراسة الذكي</h1>
+    <p>اكتب موادك ومواعيد اختباراتها، وClaude يرتب لك جدول مذاكرة يومي بالأولويات والاستراحات.</p>
+  </header>
+
+  <form class="panel" id="form" novalidate>
+    <h2>موادك</h2>
+    <p class="hint">البيانات المعبّأة أمثلة تجريبية، غيّرها بموادك.</p>
+    <div class="subjects" id="subjects"></div>
+    <button type="button" class="add" id="add">+ أضف مادة</button>
+
+    <div class="grid2">
+      <div>
+        <label for="hours">ساعات الدراسة المتاحة يوميًا</label>
+        <input id="hours" type="number" min="1" max="14" step="0.5" value="4">
+      </div>
+      <div>
+        <label for="notes">ملاحظات إضافية (اختياري)</label>
+        <textarea id="notes" rows="2" maxlength="500" placeholder="مثال: أفضّل أذاكر الصباح، وعندي تمرين يوم الثلاثاء"></textarea>
+        <div class="counter" id="counter">0 / 500</div>
+      </div>
+    </div>
+    <button type="submit" class="go" id="go">أنشئ جدول دراستي</button>
+  </form>
+
+  <div id="status" hidden></div>
+  <section id="result" hidden></section>
+</div>
+
+<script>
+const MAX_CHARS = 500, TIMEOUT_MS = 90000, LEVELS = ["سهلة", "متوسطة", "صعبة"];
+const $ = id => document.getElementById(id);
+const iso = d => d.toISOString().slice(0, 10);
+const plusDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return iso(d); };
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+let rowId = 0;
+
+function addRow(name = "", date = plusDays(7), level = "متوسطة") {
+  const i = rowId++;
+  const row = document.createElement("div");
+  row.className = "row";
+  row.innerHTML = `
+    <div><label for="n${i}">اسم المادة</label><input id="n${i}" class="name" maxlength="40" value="${esc(name)}" placeholder="مثال: الكيمياء"></div>
+    <div><label for="d${i}">موعد الاختبار</label><input id="d${i}" class="date" type="date" min="${iso(new Date())}" value="${date}"></div>
+    <div><label for="l${i}">الصعوبة</label><select id="l${i}" class="level">${LEVELS.map(l => `<option ${l === level ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+    <button type="button" class="remove" aria-label="احذف المادة">×</button>`;
+  row.querySelector(".remove").onclick = () => { if ($("subjects").children.length > 1) row.remove(); };
+  $("subjects").append(row);
+}
+// أمثلة تجريبية
+addRow("الرياضيات", plusDays(5), "صعبة");
+addRow("اللغة الإنجليزية", plusDays(9), "متوسطة");
+addRow("التاريخ", plusDays(12), "سهلة");
+$("add").onclick = () => addRow();
+$("notes").oninput = () => $("counter").textContent = `${$("notes").value.length} / ${MAX_CHARS}`;
+
+function showStatus(msg, isError = false) {
+  const s = $("status");
+  s.hidden = false;
+  s.className = "status" + (isError ? " error" : "");
+  s.innerHTML = `<span>${esc(msg)}</span>` + (isError ? `<button type="button" id="retry">حاول مرة ثانية</button>` : "");
+  if (isError) $("retry").onclick = generate;
+}
+
+function collect() {
+  const subjects = [...document.querySelectorAll(".row")].map(r => ({
+    name: r.querySelector(".name").value.trim(),
+    exam: r.querySelector(".date").value,
+    level: r.querySelector(".level").value,
+  }));
+  if (subjects.some(s => !s.name || !s.exam)) throw new Error("عبّ اسم كل مادة وموعد اختبارها.");
+  if (subjects.some(s => s.exam < iso(new Date()))) throw new Error("فيه موعد اختبار قبل اليوم، صحّحه.");
+  const hours = Number($("hours").value);
+  if (!(hours >= 1 && hours <= 14)) throw new Error("ساعات الدراسة لازم تكون بين 1 و 14.");
+  const notes = $("notes").value.trim();
+  const typed = subjects.map(s => s.name).join("") + notes;
+  if (typed.length > MAX_CHARS) throw new Error(`النص المكتوب أطول من ${MAX_CHARS} حرف، اختصره شوي.`);
+  return { subjects, hours, notes };
+}
+
+function buildPrompt(d) {
+  return `${AI_INSTRUCTIONS}
+اكتب كل النصوص باللهجة المذكورة في خانة "اللهجة" أعلاه بالضبط.
+
+تاريخ اليوم: ${iso(new Date())}
+ساعات الدراسة اليومية: ${d.hours}
+المواد:
+${d.subjects.map(s => `- ${s.name} | الاختبار: ${s.exam} | الصعوبة: ${s.level}`).join("\n")}
+ملاحظات الطالب: ${d.notes || "لا يوجد"}
+
+إذا كانت الأيام أكثر من 14، غطِّ أول 14 يوم فقط.
+رد بـ JSON فقط بدون أي نص قبله أو بعده، بهذا الشكل:
+{"priorities":[{"subject":"","reason":""}],
+ "days":[{"date":"YYYY-MM-DD","dayName":"","examToday":"اسم المادة أو فارغ","sessions":[{"time":"16:00-17:00","type":"study أو break","subject":"","task":""}]}],
+ "tip":""}`;
+}
+
+function parseJSON(text) {
+  const a = text.indexOf("{"), b = text.lastIndexOf("}");
+  if (a < 0 || b < a) throw new Error("bad");
+  return JSON.parse(text.slice(a, b + 1));
+}
+
+function render(plan, data) {
+  const lvl = Object.fromEntries(data.subjects.map(s => [s.name, s.level]));
+  const r = $("result");
+  r.hidden = false;
+  r.className = "panel";
+  r.innerHTML = `
+    <h2>ترتيب الأولويات</h2>
+    <ol class="prio">${(plan.priorities || []).map(p => `<li><div><strong>${esc(p.subject)} ${lvl[p.subject] ? `<span class="tag ${lvl[p.subject]}">${lvl[p.subject]}</span>` : ""}</strong><span>${esc(p.reason)}</span></div></li>`).join("")}</ol>
+    <h2>جدولك اليومي</h2>
+    <div class="days">${(plan.days || []).map(d => `
+      <article class="day ${d.examToday ? "exam" : ""}">
+        <h3><span>${esc(d.dayName)}${d.examToday ? ` · اختبار ${esc(d.examToday)}` : ""}</span><small>${esc(d.date)}</small></h3>
+        <ul class="sessions">${(d.sessions || []).map(s => s.type === "break"
+          ? `<li class="s break"><time>${esc(s.time)}</time><span>استراحة ${esc(s.task)}</span></li>`
+          : `<li class="s"><time>${esc(s.time)}</time><span><b>${esc(s.subject)}</b>${esc(s.task)}</span></li>`).join("")}</ul>
+      </article>`).join("")}</div>
+    ${plan.tip ? `<p class="tip">${esc(plan.tip)}</p>` : ""}`;
+  r.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+let sampleP = null;
+async function generate() {
+  let data;
+  try { data = collect(); } catch (e) { return showStatus(e.message, true); }
+  if (!window.claude?.use) {
+    const s = $("status"); s.hidden = false; s.className = "status";
+    s.innerHTML = '<p style="margin:0 0 10px;font-weight:600">هالجزء يشتغل داخل Claude</p><img src="claude-result.png" alt="مثال لجدول مذاكرة أنشأه Claude" style="border-radius:10px;border:1px solid var(--line)" onerror="this.remove()">';
+    return;
+  }
+  const go = $("go");
+  go.disabled = true; go.textContent = "جاري تجهيز جدولك…";
+  showStatus("Claude يرتب جدولك الحين، ممكن ياخذ دقيقة تقريبًا…");
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  try {
+    sampleP ??= window.claude?.use ? window.claude.use("sample") : Promise.resolve(null);
+    const sample = await sampleP;
+    if (!sample) throw { code: "unavailable" };
+    const res = await sample(buildPrompt(data), { signal: ctrl.signal, modelTier: "default" });
+    const plan = parseJSON(res.text);
+    $("status").hidden = true;
+    render(plan, data);
+  } catch (e) {
+    const code = e?.code;
+    const msg = ctrl.signal.aborted ? "تأخر الرد كثير. جرّب مرة ثانية بعد شوي."
+      : code === "unavailable" ? "ما قدرت أوصل لـ Claude من هنا. افتح الصفحة من رابطها على claude.ai وسجّل دخولك."
+      : code === "not_granted" ? "ما تم السماح للصفحة باستخدام Claude. اسمح لها من قائمة الصلاحيات وجرب مرة ثانية."
+      : code === "rate_limited" ? "طلبات كثيرة بوقت قصير. استنى دقيقة وجرب."
+      : e?.message === "bad" || e instanceof SyntaxError ? "وصل رد بشكل غير مرتب. اضغط حاول مرة ثانية."
+      : "صار خطأ غير متوقع. جرّب مرة ثانية.";
+    showStatus(msg, true);
+  } finally {
+    clearTimeout(timer);
+    go.disabled = false; go.textContent = "أنشئ جدول دراستي";
+  }
+}
+$("form").addEventListener("submit", e => { e.preventDefault(); generate(); });
+</script>
+
+</body></html>
